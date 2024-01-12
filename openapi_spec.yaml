@@ -1,0 +1,453 @@
+openapi: 3.0.3
+
+info:
+  title: Semrush AppCenter API
+  version: 0.0.1
+  description: |
+    This API allows retrieving data about user subscriptions
+    and operating with user email subscriptions.
+
+servers:
+  - url: https://api.semrush.com
+
+paths:
+  /app-center-api/v2/jwt-token/:
+    post:
+      tags: ["JWT issuer"]
+      summary: Request API access token
+      description: |
+        Retrieves JWT for accessing Semrush API.
+        [Documentation](https://www.semrush.com/apps/docs/server-to-server-api/bearer-token)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jwt:
+                  type: string
+                  description: |
+                    JWT by [specification](https://www.semrush.com/apps/docs/server-to-server-api/bearer-token#generate-a-jwt), 
+                    signed by your secret key
+                  example: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJkZTJhZDA1Ny04NzgwLTRjMTMtYmNmMi0zZTlhYTEzYTIwMmEiLCJhdWQiOiJhcHAtY2VudGVyIiwiaWF0IjoxNjk1ODExOTI4LjExOTAwMX0.0NiL86tQkUG25G3Y1QC2ma94sfe4cXcs8_bYcpw2OzY
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/issuerJwtResponse"
+        "403":
+          description: "Access denied"
+          content:
+            text/html:
+              schema:
+                $ref: "#/components/schemas/errorMessage"
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+
+  /apis/v4/app-center/v2/partner/viewer-status:
+    post:
+      tags: ["Partner Service"]
+      summary: User status
+      description: |
+        Retrieves user status, related to the app (purchases, subscriptions)
+        [Documentation](https://www.semrush.com/apps/docs/server-to-server-api/viewer-status)
+      security:
+        - jwtIssuerToken: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/viewerStatusRequest"
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/viewerStatusResponse"
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+
+  /apis/v4/hermes/v0/subscriptions:
+    get:
+      tags: ["Hermes Partner API"]
+      summary: Get available subscriptions
+      description: |
+        List all application's registered subscriptions
+        [Documentation](https://www.semrush.com/apps/docs/server-to-server-api/notifications#available-subscriptions)
+      security:
+        - jwtIssuerToken: []
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/appSubscriptionsResponse"
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+
+  /apis/v4/hermes/v0/user/{user_id}/subscription/{id}:
+    get:
+      tags: ["Hermes Partner API"]
+      summary: Get user's subscription status
+      description: |
+        [Documentation](https://www.semrush.com/apps/docs/server-to-server-api/notifications#subscription-status)
+      security:
+        - jwtIssuerToken: [ ]
+      parameters:
+        - in: path
+          name: user_id
+          schema:
+            type: integer
+          required: true
+          description: User id
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: Subscription id
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/appUserSubscriptionStatusResponse"
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+
+  /apis/v4/hermes/v0/event:
+    post:
+      tags: ["Hermes Partner API"]
+      summary: Send notification
+      description: |
+        [Documentation](https://www.semrush.com/apps/docs/server-to-server-api/notifications#sending-notification)
+      security:
+        - jwtIssuerToken: [ ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/createEventRequest"
+      responses:
+        "201":
+          description: "Created"
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+
+  /apis/v4/hermes/v0/event/{id}:
+    get:
+      tags: ["Hermes Partner API"]
+      summary: Get event status
+      description: |
+        [Documentation](https://www.semrush.com/apps/docs/server-to-server-api/notifications#event-status)
+      security:
+        - jwtIssuerToken: [ ]
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+            description: Global event identifier
+          required: true
+          description: Subscription id
+      responses:
+        "200":
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/eventResponse"
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+
+
+components:
+  responses:
+    "400":
+      description: "Bad request. Something wrong with the request or JWT"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/errorMessage"
+    "401":
+      description: "Unauthorized. Incorrect JWT fields or signature"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/errorMessage"
+
+  schemas:
+    actionNotification:
+      type: object
+      description: Action notification details
+      properties:
+        channel:
+          type: string
+          description: Sending channel
+        subscription_id:
+          type: integer
+          description: ID of subscription
+        recipient_id:
+          type: integer
+          description: ID of subscriber
+
+    eventAction:
+      type: object
+      description: Action that can be taken on event
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Global action identifier
+        ts:
+          type: string
+          format: date-time
+          description: Action create time in ISO format
+        type:
+          type: string
+          example: notification
+          description: Action type
+        finished:
+          type: boolean
+          description: Did action accomplished
+        notification:
+          $ref: "#/components/schemas/actionNotification"
+
+    eventState:
+      type: integer
+      enum: [1, 2, 3, 4, 5]
+      description: |
+        State of event processing.
+        * 1 - Event has been registered and awaiting processing
+        * 2 - Event processing was delayed
+        * 3 - Event was processed
+        * 4 - Event has nothing to do with
+        * 5 - Event processing was blocked by internal rules
+
+    eventResponse:
+      type: object
+      description: Create event response object
+      properties:
+        meta:
+          $ref: "#/components/schemas/responseMeta"
+        data:
+          type: object
+          description: Event status response
+          properties:
+            id:
+              type: string
+              format: uuid
+              description: Global event identifier
+            ts:
+              type: string
+              format: date-time
+              description: Event registration time in ISO format
+            state:
+              $ref: "#/components/schemas/eventState"
+            state_on:
+              type: string
+              format: date-time
+              description: Time when event get in current state in ISO format
+            decision:
+              type: string
+              description: Processing decision
+            actions:
+              type: array
+              description: Actions taken on event
+              items:
+                $ref: "#/components/schemas/eventAction"
+
+    eventAttachment:
+      type: object
+      description: Event additional files
+      properties:
+        name:
+          type: string
+          description: File name
+        mime:
+          type: string
+          example: application/pdf
+          description: File content mime type
+        content:
+          type: string
+          format: byte
+          example: eyJkYXRhX2tleSI6ImRhdGFfdmFsdWUxIn0=
+          description: File content in Base64
+
+    createEventRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          description: type of event
+        id:
+          type: string
+          format: uuid
+          description: UUID, global event identifier, idempotency key; we suggest using V4 UUIDs
+        user_id:
+          type: integer
+          description: Semrush's user ID
+        data:
+          type: string
+          format: byte
+          example: eyJkYXRhX2tleSI6ImRhdGFfdmFsdWUxIn0=
+        attachments:
+          type: array
+          description: Additional files
+          items:
+            $ref: "#/components/schemas/eventAttachment"
+
+    appUserSubscriptionStatusResponse:
+      type: object
+      description: User subscription status response object
+      properties:
+        meta:
+          $ref: "#/components/schemas/responseMeta"
+        data:
+          type: object
+          description: An object describes subscription status related to user
+          properties:
+            active:
+              type: boolean
+              description: Does user subscribed on requested subscription
+
+    appSubscriptionsResponse:
+      type: object
+      description: Available subscriptions response object
+      properties:
+        meta:
+          $ref: "#/components/schemas/responseMeta"
+        data:
+          type: object
+          description: An object describes all app subscriptions
+          properties:
+            subscriptions:
+              type: array
+              description: app subscriptions
+              items:
+                type: object
+                description: available subscription
+                properties:
+                  id:
+                    type: integer
+                    description: Subscription ID
+                  name:
+                    type: string
+                    description: Subscription name
+                  description:
+                    type: string
+                    description: Subscription description
+
+    viewerActiveProduct:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID of product
+        value:
+          type: integer
+          description: Amount of bought product (1 for one-time products, >1 in other cases)
+          minimum: 0
+
+    viewerStatusResponse:
+      type: object
+      description: Viewer Status response object
+      properties:
+        meta:
+          $ref: "#/components/schemas/responseMeta"
+        data:
+          type: object
+          description: An object describes user status, related to the app
+          properties:
+            is_main_product_active:
+              type: boolean
+              description: Shows if the app's main product is active
+            is_app_taken_for_free:
+              type: boolean
+              description: Shows if the app is taken for free
+            is_main_product_trial_available:
+              type: boolean
+              description: true if a user can activate trial for app's main product
+            product_trials_available:
+              type: array
+              description: All app's products ids, for which user can activate trial
+              items:
+                type: string
+                format: uuid
+                description: product id
+            active_products:
+              type: array
+              description: List of user's in-app purchases (bought products)
+              minItems: 0
+              items:
+                $ref: "#/components/schemas/viewerActiveProduct"
+
+    responseMeta:
+      type: object
+      description: Response metadata
+      properties:
+        success:
+          type: boolean
+        status_code:
+          type: integer
+          example: 200
+        request_id:
+          type: string
+
+    viewerStatusRequest:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: Semrush user ID
+
+    errorMessage:
+      type: string
+      maxLength: 256
+      description: A text message describing an error
+
+    issuerErrorMessage:
+      type: object
+      description: An object describing an error
+      properties:
+        message:
+          type: string
+        message_code:
+          type: string
+        code:
+          type: integer
+
+    issuerJwtResponse:
+      type: object
+      description: An object describing a JWT
+      properties:
+        jwt:
+          type: string
+
+  securitySchemes:
+    jwtIssuerToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Use token retrieved from Jwt Issuer
+        [Documentation](https://www.semrush.com/apps/docs/server-to-server-api/bearer-token)
